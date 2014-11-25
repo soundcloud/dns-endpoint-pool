@@ -4,6 +4,8 @@ var EndpointPool,
     Events = require('events'),
     util   = require('util'),
 
+    DNS_LOOKUP_TIMEOUT = 5000,
+
     CLOSED = 0,
     HALF_OPEN_READY = 1,
     HALF_OPEN_PENDING = 2,
@@ -43,7 +45,9 @@ _.extend(EndpointPool.prototype, {
   },
 
   resolve: function (cb) {
-    dns.resolveSrv(this.discoveryName, cb);
+    var callback = _.once(cb);
+    setTimeout(callback, DNS_LOOKUP_TIMEOUT, dns.TIMEOUT);
+    dns.resolveSrv(this.discoveryName, callback);
   },
 
   getEndpoint: function () {
