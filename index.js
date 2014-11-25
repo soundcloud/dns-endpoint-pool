@@ -19,6 +19,7 @@ module.exports = EndpointPool = function (discoveryName, ttl, maxFailures, reset
   this.ttl = ttl;
   this.endpoints = [];
   this._endpointOffset = 0;
+  this._updateTimeout = null;
   this.maxFailures = maxFailures;
   this.resetTimeout = resetTimeout;
   this.update();
@@ -28,20 +29,24 @@ util.inherits(EndpointPool, Events.EventEmitter);
 
 _.extend(EndpointPool.prototype, {
   update: function () {
-    dns.resolveSrv(this.discoveryName, function (err, endpoints) {
+    this.resolve(function (err, endpoints) {
       if (err) {
         this.emit('error', err);
       } else {
         // endpoints = [/*endpoints[0],*/ {name: 'localhost', port: 1337 }];
         this.setEndpoints(endpoints);
       }
-      setTimeout(this.update.bind(this), this.ttl);
+      this._updateTimeout = setTimeout(this.update.bind(this), this.ttl);
     }.bind(this));
+  },
+
+  resolve: function (cb) {
+    dns.resolveSrv(this.discoveryName, cb);
   },
 
   getEndpoint: function () {
     var endpoint, i, l, offset;
-    for (i = 1, l = this.endpoints.length; i <= l; ++i) {
+    for (i = 0, l = this.endpoints.length; i < l; ++i) {
       offset = (this._endpointOffset + i) % l;
       endpoint = this.endpoints[offset];
 
@@ -50,7 +55,7 @@ _.extend(EndpointPool.prototype, {
           endpoint.state = HALF_OPEN_PENDING; // let one through, then turn it off again
           /* falls through */
         case CLOSED:
-          this._endpointOffset = offset;
+          this._endpointOffset = offset + 1;
           return endpoint;
         // case OPEN: case HALF_OPEN_PENDING: // continue to the next one
       }
@@ -77,6 +82,10 @@ _.extend(EndpointPool.prototype, {
     }
     // push all the actually-new endpoints in
     this.endpoints.push.apply(this.endpoints, newEndpoints);
+  },
+
+  stopUpdating: function () {
+    clearTimeout(this._updateTimeout);
   }
 });
 
