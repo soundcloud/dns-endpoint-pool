@@ -67,7 +67,7 @@ as a failure of the endpoint. If falsey, it marks the endpoint as successful and
 
 ## Events
 
-- If a request to update the endpoints fails, the pool will emit an `'error'` event. The endpoint pool will continue to
+- If a request to update the endpoints fails, the pool will emit an `'updateError'` event. The endpoint pool will continue to
   function, using the previously fetched endpoints.
 - If it is not possible to return any values from `getEndpoints()` (because all endpoints are disabled, for example), the
   pool will emit `'noEndpoints'`.
@@ -76,7 +76,7 @@ as a failure of the endpoint. If falsey, it marks the endpoint as successful and
 ```js
 var pool = new DNSEndpointPool('my.domain.example.com', 10000, 5, 10000);
 
-pool.on('error', function (err) {
+pool.on('updateError', function (err) {
   log('Could not fetch endpoints');
 });
 pool.on('noEndpoints', function () {

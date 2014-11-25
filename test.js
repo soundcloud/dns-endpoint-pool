@@ -88,7 +88,7 @@ describe('DNS Endpoint Pool', function () {
 
     expect(dep.getEndpoint().url).to.be('bar.localhost:8000');
 
-    dep.on('error', function (err) {
+    dep.on('updateError', function (err) {
       errorData = err;
     });
 
@@ -182,6 +182,40 @@ describe('DNS Endpoint Pool', function () {
 
     barEndpoint.callback(null); // denotes success
     expect(dep.getEndpoint()).to.be(barEndpoint); // it's back in the game
+    dep.stopUpdating();
+  });
+
+  it('reports the age of the endpoints when updates fail', function () {
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
+        errorHandler = Sinon.spy(),
+        errObj = { error: true },
+        dep;
+
+    // works on the first and fourth calls, fails every other time
+    resolve
+      .callsArgWith(0, errObj)
+      .onFirstCall().callsArgWith(0, null, [
+        { name: 'bar.localhost', port: 8000 },
+        { name: 'baz.localhost', port: 8001 }
+      ])
+      .onCall(3).callsArgWith(0, null, [
+        { name: 'bar.localhost', port: 8000 },
+        { name: 'baz.localhost', port: 8001 }
+      ]);
+
+
+    dep = new DEP('foo.localhost', 5000, 2, 10000);  // call 1
+    dep.on('updateError', errorHandler);
+    clock.tick(5000); // call 2
+    clock.tick(5000); // call 3
+    clock.tick(5000); // call 4, should reset the timer
+    clock.tick(5000); // call 5
+
+    Sinon.assert.calledThrice(errorHandler);
+
+    expect(errorHandler.firstCall.calledWithExactly(errObj, 5000)).to.be(true);
+    expect(errorHandler.secondCall.calledWithExactly(errObj, 10000)).to.be(true);
+    expect(errorHandler.thirdCall.calledWithExactly(errObj, 5000)).to.be(true);
     dep.stopUpdating();
   });
 });

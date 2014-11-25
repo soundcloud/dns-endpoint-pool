@@ -22,6 +22,8 @@ module.exports = EndpointPool = function (discoveryName, ttl, maxFailures, reset
   this._updateTimeout = null;
   this.maxFailures = maxFailures;
   this.resetTimeout = resetTimeout;
+  this.lastUpdate = Date.now();
+
   this.update();
 };
 
@@ -31,9 +33,9 @@ _.extend(EndpointPool.prototype, {
   update: function () {
     this.resolve(function (err, endpoints) {
       if (err) {
-        this.emit('error', err);
+        this.emit('updateError', err, Date.now() - this.lastUpdate);
       } else {
-        // endpoints = [/*endpoints[0],*/ {name: 'localhost', port: 1337 }];
+        this.lastUpdate = Date.now();
         this.setEndpoints(endpoints);
       }
       this._updateTimeout = setTimeout(this.update.bind(this), this.ttl);
