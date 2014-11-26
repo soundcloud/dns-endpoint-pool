@@ -40,14 +40,15 @@ it is disabled once again.
 
 ## API
 
-### `new DNSEndpointPool(serviceDiscoveryName, ttl, maxFailures, resetTimeout)`
+### `new DNSEndpointPool(serviceDiscoveryName, ttl, maxFailures, failureWindow, resetTimeout)`
 
 Creates a new pool object.
 
 - `serviceDiscoveryName`: the domain name to get endpoint values from
 - `ttl`: the time (in ms) that the DNS lookup values are valid for. They will automatically be refreshed on this
   interval.
-- `maxFailures`: how many failures from a single endpoint before it is removed from the pool
+- `maxFailures`: how many failures from a single endpoint before it is removed from the pool.
+- `failureWindow`: size of the sliding window of time in which the failures are counted.
 - `resetTimeout`: the length of the window in which to record failures. Also the timeout before an endpoint will be
   tried again.
 
@@ -74,7 +75,7 @@ as a failure of the endpoint. If falsey, it marks the endpoint as successful and
 
 
 ```js
-var pool = new DNSEndpointPool('my.domain.example.com', 10000, 5, 10000);
+var pool = new DNSEndpointPool('my.domain.example.com', 10000, 5, 10000, 10000);
 
 pool.on('updateError', function (err) {
   log('Could not fetch endpoints');

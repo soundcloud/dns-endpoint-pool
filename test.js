@@ -35,7 +35,7 @@ describe('DNS Endpoint Pool', function () {
 
   it('will automatically begin updating when constructed', function () {
     var stub = autoRestore(Sinon.stub(DEP.prototype, 'update')),
-        dep = new DEP('foo.localhost', 5000, 2, 10000);
+        dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
     Sinon.assert.calledOnce(stub);
   });
 
@@ -44,7 +44,7 @@ describe('DNS Endpoint Pool', function () {
         dep;
 
     resolve.callsArgWith(0, null, []);
-    dep = new DEP('foo.localhost', 5000, 2, 10000);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
 
     Sinon.assert.calledOnce(resolve);
 
@@ -65,7 +65,7 @@ describe('DNS Endpoint Pool', function () {
       { name: 'bar.localhost', port: 8000 },
       { name: 'baz.localhost', port: 8001 }
     ]);
-    dep = new DEP('foo.localhost', 5000, 2, 10000);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
 
     expect(dep.getEndpoint().url).to.be('bar.localhost:8000');
     expect(dep.getEndpoint().url).to.be('baz.localhost:8001');
@@ -84,7 +84,7 @@ describe('DNS Endpoint Pool', function () {
       ])
       .onSecondCall().callsArgWith(0, { error: true });
 
-    dep = new DEP('foo.localhost', 5000, 2, 10000);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
 
     expect(dep.getEndpoint().url).to.be('bar.localhost:8000');
 
@@ -113,7 +113,7 @@ describe('DNS Endpoint Pool', function () {
         { name: 'baz.localhost', port: 8001  },
         { name: 'quux.localhost', port: 8002 }
       ]);
-    dep = new DEP('foo.localhost', 5000, 2, 10000);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
 
     dep.getEndpoint(); // bar
     bazEndpoint = dep.getEndpoint();
@@ -140,7 +140,7 @@ describe('DNS Endpoint Pool', function () {
       { name: 'baz.localhost', port: 8001 }
     ]);
 
-    dep = new DEP('foo.localhost', 5000, 2, 10000);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
 
     barEndpoint = dep.getEndpoint();
     barEndpoint.callback(true);
@@ -166,7 +166,7 @@ describe('DNS Endpoint Pool', function () {
       { name: 'baz.localhost', port: 8001 }
     ]);
 
-    dep = new DEP('foo.localhost', 5000, 2, 10000);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);
 
     barEndpoint = dep.getEndpoint();
     barEndpoint.callback(true);
@@ -204,7 +204,7 @@ describe('DNS Endpoint Pool', function () {
       ]);
 
 
-    dep = new DEP('foo.localhost', 5000, 2, 10000);  // call 1
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000);  // call 1
     dep.on('updateError', errorHandler);
     clock.tick(5000); // call 2
     clock.tick(5000); // call 3
