@@ -40,7 +40,7 @@ it is disabled once again.
 
 ## API
 
-### `new DNSEndpointPool(serviceDiscoveryName, ttl, maxFailures, failureWindow, resetTimeout)`
+### `new DNSEndpointPool(serviceDiscoveryName, ttl, maxFailures, failureWindow, resetTimeout, onReady)`
 
 Creates a new pool object.
 
