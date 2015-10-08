@@ -12,14 +12,15 @@ var EndpointPool,
     OPEN              = 3;  // open circuit: endpoint is no good
 
 /**
- * @param {String} discoveryName The name of the service discovery host
- * @param {Number} ttl           How long the endpoints are valid for. The service discovery endpoint will be checked on
- *                               this interval.
- * @param {Number} maxFailures   Number of failures allowed before the endpoint circuit breaker is tripped.
- * @param {Number} failureWindow Size of the sliding window of time in which the failures are counted.
- * @param {Number} resetTimeout  Amount of time before putting the circuit back into half open state.
+ * @param {String}   discoveryName The name of the service discovery host
+ * @param {Number}   ttl           How long the endpoints are valid for. The service discovery endpoint will be checked on
+ *                                 this interval.
+ * @param {Number}   maxFailures   Number of failures allowed before the endpoint circuit breaker is tripped.
+ * @param {Number}   failureWindow Size of the sliding window of time in which the failures are counted.
+ * @param {Number}   resetTimeout  Amount of time before putting the circuit back into half open state.
+ * @param {Function} onReady       Callback to execute when endpoints have been primed (updated for the first time)
  */
-module.exports = EndpointPool = function (discoveryName, ttl, maxFailures, failureWindow, resetTimeout) {
+module.exports = EndpointPool = function (discoveryName, ttl, maxFailures, failureWindow, resetTimeout, onReady) {
   if (!discoveryName || !ttl || !maxFailures || !resetTimeout) {
     throw new Error('Must supply all arguments');
   }
@@ -34,13 +35,13 @@ module.exports = EndpointPool = function (discoveryName, ttl, maxFailures, failu
   this.failureWindow = failureWindow;
   this.resetTimeout = resetTimeout;
   this.lastUpdate = Date.now();
-  this.update();
+  this.update(onReady);
 };
 
 util.inherits(EndpointPool, Events.EventEmitter);
 
 _.extend(EndpointPool.prototype, {
-  update: function () {
+  update: function (onDone) {
     this.resolve(function (err, endpoints) {
       if (err || !endpoints || !endpoints.length) {
         this.emit('updateError', err, Date.now() - this.lastUpdate);
@@ -49,6 +50,10 @@ _.extend(EndpointPool.prototype, {
         this.setEndpoints(endpoints);
       }
       this._updateTimeout = setTimeout(this.update.bind(this), this.ttl);
+
+      if (typeof onDone === 'function') {
+        onDone();
+      }
     }.bind(this));
   },
 

@@ -39,6 +39,21 @@ describe('DNS Endpoint Pool', function () {
     Sinon.assert.calledOnce(stub);
   });
 
+  it('will execute a callback after the first update', function () {
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
+        called = false,
+        dep;
+
+    resolve.callsArgWith(0, null, []);
+    dep = new DEP('foo.localhost', 5000, 2, 10000, 10000, function () {
+      called = true;
+    });
+
+    expect(called).to.be(true);
+
+    dep.stopUpdating();
+  });
+
   it('will update on a timer', function () {
     var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
         dep;

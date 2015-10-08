@@ -51,6 +51,7 @@ Creates a new pool object.
 - `failureWindow`: size of the sliding window of time in which the failures are counted.
 - `resetTimeout`: the length of the window in which to record failures. Also the timeout before an endpoint will be
   tried again.
+- `onReady`: callback that will be executed after the list of endpoints is fetched for the first time. This does *not* guarantee that the endpoint list is not empty.
 
 ### `pool.getEndpoint()`
 
