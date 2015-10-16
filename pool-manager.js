@@ -26,7 +26,8 @@ PoolManager.prototype = {
     }
   },
   updateEndpoints: function (endpoints) {
-    newEndpoints = endpoints.map(function (info) {
+    var matchingEndpoint, i;
+    var newEndpoints = endpoints.map(function (info) {
       return new Endpoint(info);
     });
 
