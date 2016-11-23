@@ -142,6 +142,25 @@ describe('DNS Endpoint Pool', function () {
     dep.stopUpdating();
   });
 
+  it('can query the state of endpoints', function () {
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
+        dep;
+
+    resolve
+      .onFirstCall().callsArgWith(0, { error: true })
+      .onSecondCall().callsArgWith(0, null, [ { name: 'bar.localhost', port: 8000 } ])
+      .onThirdCall().callsArgWith(0, { error: true });
+
+    dep = new DEP('foo.localhost', 5000);
+
+    expect(dep.hasEndpoints()).to.be(false);
+    clock.tick(5000);
+    expect(dep.hasEndpoints()).to.be(true);
+    clock.tick(5000);
+    // should still have old endpoints
+    expect(dep.hasEndpoints()).to.be(true);
+  });
+
   describe('with eject-on-error pool management', function () {
 
     var ejectOnErrorConfig = {

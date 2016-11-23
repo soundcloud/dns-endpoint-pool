@@ -75,6 +75,10 @@ _.extend(EndpointPool.prototype, {
     }
   },
 
+  hasEndpoints: function () {
+    return this.poolManager.hasEndpoints();
+  },
+
   setEndpoints: function (endpoints) {
     this.poolManager.updateEndpoints(endpoints);
   },
