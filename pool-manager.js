@@ -12,6 +12,9 @@ function PoolManager (options) {
 }
 
 PoolManager.prototype = {
+  hasEndpoints: function () {
+    return this.endpoints.length > 0;
+  },
   getNextEndpoint: function () {
     var i, l, offset, endpoint;
 
