@@ -183,6 +183,7 @@ describe('DNS Endpoint Pool', function () {
       var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
           barEndpoint,
           bazEndpoint,
+          status,
           dep;
 
       resolve.callsArgWith(0, null, [
@@ -202,6 +203,12 @@ describe('DNS Endpoint Pool', function () {
 
       expect(dep.getEndpoint()).to.be(bazEndpoint);
       expect(dep.getEndpoint()).to.be(bazEndpoint); // bar is removed
+
+      status = dep.getStatus();
+      expect(status.total).to.be(2);
+      expect(status.unhealthy).to.be(1);
+      expect(status.age).to.be.a('number');
+
       dep.stopUpdating();
     });
 

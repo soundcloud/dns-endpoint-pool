@@ -9,6 +9,7 @@ function PoolManager (options) {
   this.isInPool = options.isInPool || _.constant(true);
   this.onEndpointReturned = options.onEndpointReturned || _.noop;
   this.onEndpointRegistered = options.onEndpointRegistered || _.noop;
+  this.onEndpointSelected = options.onEndpointSelected || _.noop;
 }
 
 PoolManager.prototype = {
@@ -23,6 +24,7 @@ PoolManager.prototype = {
       endpoint = this.endpoints[offset];
 
       if (this.isInPool(endpoint)) {
+        this.onEndpointSelected(endpoint);
         this._endpointOffset = offset + 1;
         return endpoint;
       }
@@ -50,6 +52,15 @@ PoolManager.prototype = {
     }, this);
     // push all the actually-new endpoints in
     this.endpoints.push.apply(this.endpoints, newEndpoints);
+  },
+  getStatus: function () {
+    var manager = this;
+    return {
+      total: this.endpoints.length,
+      unhealthy: this.endpoints.reduce(function (badCount, endpoint) {
+        return badCount + (manager.isInPool(endpoint) ? 0 : 1);
+      }, 0)
+    }
   }
 };
 
@@ -90,12 +101,15 @@ module.exports = {
       isInPool: function (endpoint) {
         switch (endpoint.state) {
           case HALF_OPEN_READY:
-            endpoint.state = HALF_OPEN_PENDING; // let one through, then turn it off again
-            /* falls through */
           case CLOSED:
             return true;
           default:
             return false;
+        }
+      },
+      onEndpointSelected: function (endpoint) {
+        if (endpoint.state === HALF_OPEN_READY) {
+          endpoint.state = HALF_OPEN_PENDING; // let one through, then turn it off again
         }
       },
       onEndpointRegistered: function (endpoint) {

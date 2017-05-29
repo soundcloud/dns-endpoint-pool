@@ -83,6 +83,14 @@ _.extend(EndpointPool.prototype, {
     this.poolManager.updateEndpoints(endpoints);
   },
 
+  getStatus: function () {
+    var poolStatus = this.poolManager.getStatus();
+    var endpoints = this.poolManager.endpoints;
+    return _.assign({
+      age: Date.now() - this.lastUpdate
+    }, poolStatus);
+  },
+
   stopUpdating: function () {
     clearTimeout(this._updateTimeout);
   }
