@@ -1,6 +1,6 @@
 {
   "name": "dns-endpoint-pool",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Manage and load-balance a pool of service endpoints retrieved from a DNS lookup for a service discovery name.",
   "main": "index.js",
   "author": "SoundCloud",
@@ -14,7 +14,7 @@
     "test": "mocha test.js"
   },
   "dependencies": {
-    "underscore": "=1.7.0"
+    "underscore": "1.8.3"
   },
   "devDependencies": {
     "expect.js": "=0.3.1",

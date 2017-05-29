@@ -58,6 +58,14 @@ Creates a new pool object.
 Returns the next active `endpoint` from the pool, or `null` if none are available. If none are available, the pool will
 emit `'noEndpoints'`.
 
+### `pool.getStatus()`
+
+Returns an object containing information about the health of the pool. There are three values:
+
+- `total`: The total number of endpoints in the pool, in any status.
+- `unhealthy`: The number of endpoints which are unavailable (eg: due to their circuit breaker being open)
+- `age`: The number of milliseconds since the last successful update of endpoints.
+
 ### `endpoint.url`
 
 The endpoint url (without protocol) from the DNS lookup.
