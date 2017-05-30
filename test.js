@@ -317,7 +317,38 @@ describe('DNS Endpoint Pool', function () {
         endpoint.callback(true);
         endpoint = dep.getEndpoint();
         endpoint.callback(true);
-        expect(dep.getEndpoint(), 'to be', null);
+        expect(dep.getEndpoint()).to.be(null);
+      });
+
+      it('will reinstate endpoints for a single request after a timeout', function () {
+        var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
+
+        resolve.callsArgWith(0, null, [
+          { name: 'bar.localhost', port: 8000 },
+          { name: 'baz.localhost', port: 8001 }
+        ]);
+
+        var dep = new DEP('foo.localhost', 5000, {
+          failureRate: 1,
+          failureRateWindow: 2,
+          resetTimeout: 10000
+        });
+
+        var barEndpoint = dep.getEndpoint();
+        barEndpoint.callback(true);
+        barEndpoint.callback(true); // removed from pool.
+
+        var bazEndpoint = dep.getEndpoint();
+
+        clock.tick(10000);
+
+        expect(dep.getEndpoint()).to.be(barEndpoint);
+        expect(dep.getEndpoint()).to.be(bazEndpoint);
+        expect(dep.getEndpoint()).to.be(bazEndpoint); // only return barEndpoint once
+
+        barEndpoint.callback(null); // denotes success
+        expect(dep.getEndpoint()).to.be(barEndpoint); // it's back in the game
+        dep.stopUpdating();
       });
     });
   });

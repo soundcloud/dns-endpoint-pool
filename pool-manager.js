@@ -88,17 +88,11 @@ module.exports = {
       throw new Error('Must supply arguments to ejectOnErrorPoolManager');
     }
 
-    var failureWindow = options.failureWindow;
-    var maxFailures = options.maxFailures;
-    var resetTimeout = options.resetTimeout;
-    var failureRate = options.failureRate;
-    var failureRateWindow = options.failureRateWindow;
-
     var poolConfig;
-    if (failureWindow && maxFailures && resetTimeout) {
-      poolConfig = getRollingWindowConfiguration();
-    } else if (failureRate && failureRateWindow && resetTimeout) {
-      poolConfig = getRateConfiguration();
+    if (options.failureWindow && options.maxFailures && options.resetTimeout) {
+      poolConfig = getRollingWindowConfiguration(options.failureWindow, options.maxFailures, options.resetTimeout);
+    } else if (options.failureRate && options.failureRateWindow && options.resetTimeout) {
+      poolConfig = getRateConfiguration(options.failureRate, options.failureRateWindow, options.resetTimeout);
     } else {
       throw new Error('Must supply either configuration to ejectOnErrorPoolManager');
     }
@@ -113,7 +107,7 @@ module.exports = {
       clearInterval(endpoint._reopenTimeout);
       endpoint._reopenTimeout = setTimeout(function () {
         endpoint.state = HALF_OPEN_READY;
-      }, resetTimeout);
+      }, options.resetTimeout);
     }
     function isInPool(endpoint) {
       return endpoint.state === CLOSED || endpoint.state === HALF_OPEN_READY;
@@ -124,7 +118,7 @@ module.exports = {
       }
     }
 
-    function getRollingWindowConfiguration() {
+    function getRollingWindowConfiguration(failureWindow, maxFailures, resetTimeout) {
       return {
         isInPool: isInPool,
         onEndpointSelected: onEndpointSelected,
@@ -159,7 +153,7 @@ module.exports = {
       };
     }
 
-    function getRateConfiguration() {
+    function getRateConfiguration(failureRate, failureRateWindow, resetTimeout) {
       var maxErrorCount = failureRate * failureRateWindow;
       return {
         isInPool: isInPool,
@@ -173,7 +167,7 @@ module.exports = {
           var state = endpoint.state;
           var newStatus = err ? 1 : 0;
           var oldestStatus = endpoint.buffer.read() ? 1 : 0;
-          endpoint.buffer.write(!!newStatus);
+          endpoint.buffer.write(newStatus);
           endpoint.errors += newStatus - oldestStatus;
 
           if (err && (state === HALF_OPEN_PENDING || endpoint.errors >= maxErrorCount)) {
