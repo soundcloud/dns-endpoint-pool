@@ -1,10 +1,11 @@
 /*globals it, describe, beforeEach, afterEach */
-var expect = require('expect.js'),
-    Sinon = require('sinon'),
-    DEP = require('./');
+var expect = require('expect.js');
+var Sinon = require('sinon');
+var DEP = require('./');
 
 describe('DNS Endpoint Pool', function () {
-  var stubs = [], clock;
+  var stubs = [];
+  var clock;
   function autoRestore(stub) {
     stubs.push(stub);
     return stub;
@@ -32,18 +33,18 @@ describe('DNS Endpoint Pool', function () {
   });
 
   it('will automatically begin updating when constructed', function () {
-    var stub = autoRestore(Sinon.stub(DEP.prototype, 'update')),
-        dep = new DEP('foo.localhost', 5000);
+    /*eslint no-unused-vars: 0 */
+    var stub = autoRestore(Sinon.stub(DEP.prototype, 'update'));
+    var dep = new DEP('foo.localhost', 5000);
     Sinon.assert.calledOnce(stub);
   });
 
   it('will execute a callback after the first update', function () {
-    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-        called = false,
-        dep;
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
+    var called = false;
 
     resolve.callsArgWith(0, null, []);
-    dep = new DEP('foo.localhost', 5000, null, function () {
+    var dep = new DEP('foo.localhost', 5000, null, function () {
       called = true;
     });
 
@@ -53,11 +54,10 @@ describe('DNS Endpoint Pool', function () {
   });
 
   it('will update on a timer', function () {
-    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-        dep;
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
     resolve.callsArgWith(0, null, []);
-    dep = new DEP('foo.localhost', 5000);
+    var dep = new DEP('foo.localhost', 5000);
 
     Sinon.assert.calledOnce(resolve);
 
@@ -71,14 +71,13 @@ describe('DNS Endpoint Pool', function () {
   });
 
   it('will add resolved endpoints and serve them in rotation', function () {
-    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-        dep;
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
     resolve.callsArgWith(0, null, [
       { name: 'bar.localhost', port: 8000 },
       { name: 'baz.localhost', port: 8001 }
     ]);
-    dep = new DEP('foo.localhost', 5000);
+    var dep = new DEP('foo.localhost', 5000);
 
     expect(dep.getEndpoint().url).to.be('bar.localhost:8000');
     expect(dep.getEndpoint().url).to.be('baz.localhost:8001');
@@ -86,9 +85,7 @@ describe('DNS Endpoint Pool', function () {
   });
 
   it('will trigger an error if resolving fails', function () {
-    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-        errorData,
-        dep;
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
     resolve
       .onFirstCall().callsArgWith(0, null, [
@@ -97,10 +94,11 @@ describe('DNS Endpoint Pool', function () {
       ])
       .onSecondCall().callsArgWith(0, { error: true });
 
-    dep = new DEP('foo.localhost', 5000);
+    var dep = new DEP('foo.localhost', 5000);
 
     expect(dep.getEndpoint().url).to.be('bar.localhost:8000');
 
+    var errorData;
     dep.on('updateError', function (err) {
       errorData = err;
     });
@@ -113,9 +111,7 @@ describe('DNS Endpoint Pool', function () {
   });
 
   it('will update with new endpoints returned', function () {
-    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-        bazEndpoint,
-        dep;
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
     resolve
       .onFirstCall().callsArgWith(0, null, [
@@ -126,10 +122,10 @@ describe('DNS Endpoint Pool', function () {
         { name: 'baz.localhost', port: 8001  },
         { name: 'quux.localhost', port: 8002 }
       ]);
-    dep = new DEP('foo.localhost', 5000);
+    var dep = new DEP('foo.localhost', 5000);
 
     dep.getEndpoint(); // bar
-    bazEndpoint = dep.getEndpoint();
+    var bazEndpoint = dep.getEndpoint();
 
     expect(bazEndpoint.url).to.be('baz.localhost:8001');
 
@@ -143,15 +139,14 @@ describe('DNS Endpoint Pool', function () {
   });
 
   it('can query the state of endpoints', function () {
-    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-        dep;
+    var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
     resolve
       .onFirstCall().callsArgWith(0, { error: true })
       .onSecondCall().callsArgWith(0, null, [ { name: 'bar.localhost', port: 8000 } ])
       .onThirdCall().callsArgWith(0, { error: true });
 
-    dep = new DEP('foo.localhost', 5000);
+    var dep = new DEP('foo.localhost', 5000);
 
     expect(dep.hasEndpoints()).to.be(false);
     clock.tick(5000);
@@ -180,23 +175,19 @@ describe('DNS Endpoint Pool', function () {
     });
 
     it('will remove endpoints from the pool if they fail', function () {
-      var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-          barEndpoint,
-          bazEndpoint,
-          status,
-          dep;
+      var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
       resolve.callsArgWith(0, null, [
         { name: 'bar.localhost', port: 8000 },
         { name: 'baz.localhost', port: 8001 }
       ]);
 
-      dep = new DEP('foo.localhost', 5000, ejectOnErrorConfig);
+      var dep = new DEP('foo.localhost', 5000, ejectOnErrorConfig);
 
-      barEndpoint = dep.getEndpoint();
+      var barEndpoint = dep.getEndpoint();
       barEndpoint.callback(true);
 
-      bazEndpoint = dep.getEndpoint();
+      var bazEndpoint = dep.getEndpoint();
 
       expect(dep.getEndpoint()).to.be(barEndpoint); // still in the pool
       barEndpoint.callback(true);
@@ -204,7 +195,7 @@ describe('DNS Endpoint Pool', function () {
       expect(dep.getEndpoint()).to.be(bazEndpoint);
       expect(dep.getEndpoint()).to.be(bazEndpoint); // bar is removed
 
-      status = dep.getStatus();
+      var status = dep.getStatus();
       expect(status.total).to.be(2);
       expect(status.unhealthy).to.be(1);
       expect(status.age).to.be.a('number');
@@ -213,23 +204,20 @@ describe('DNS Endpoint Pool', function () {
     });
 
     it('will reinstate endpoints for a single request after a timeout', function () {
-      var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-          barEndpoint,
-          bazEndpoint,
-          dep;
+      var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
 
       resolve.callsArgWith(0, null, [
         { name: 'bar.localhost', port: 8000 },
         { name: 'baz.localhost', port: 8001 }
       ]);
 
-      dep = new DEP('foo.localhost', 5000, ejectOnErrorConfig);
+      var dep = new DEP('foo.localhost', 5000, ejectOnErrorConfig);
 
-      barEndpoint = dep.getEndpoint();
+      var barEndpoint = dep.getEndpoint();
       barEndpoint.callback(true);
       barEndpoint.callback(true); // removed from pool.
 
-      bazEndpoint = dep.getEndpoint();
+      var bazEndpoint = dep.getEndpoint();
 
       clock.tick(10000);
 
@@ -243,10 +231,9 @@ describe('DNS Endpoint Pool', function () {
     });
 
     it('reports the age of the endpoints when updates fail', function () {
-      var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve')),
-          errorHandler = Sinon.spy(),
-          errObj = { error: true },
-          dep;
+      var resolve = autoRestore(Sinon.stub(DEP.prototype, 'resolve'));
+      var errorHandler = Sinon.spy();
+      var errObj = { error: true };
 
       // works on the first and fourth calls, fails every other time
       resolve
@@ -260,7 +247,7 @@ describe('DNS Endpoint Pool', function () {
           { name: 'baz.localhost', port: 8001 }
         ]);
 
-      dep = new DEP('foo.localhost', 5000, ejectOnErrorConfig);  // call 1
+      var dep = new DEP('foo.localhost', 5000, ejectOnErrorConfig);  // call 1
       dep.on('updateError', errorHandler);
       clock.tick(5000); // call 2
       clock.tick(5000); // call 3
@@ -275,5 +262,4 @@ describe('DNS Endpoint Pool', function () {
       dep.stopUpdating();
     });
   });
-
 });
