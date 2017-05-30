@@ -1,11 +1,11 @@
-var EndpointPool,
-    _           = require('underscore'),
-    dns         = require('dns'),
-    Events      = require('events'),
-    PoolManager = require('./pool-manager'),
-    util        = require('util'),
+var EndpointPool;
+var _           = require('underscore');
+var dns         = require('dns');
+var Events      = require('events');
+var PoolManager = require('./pool-manager');
+var util        = require('util');
 
-    DNS_LOOKUP_TIMEOUT = 1000;
+var DNS_LOOKUP_TIMEOUT = 1000;
 
 /**
  * @param {String}    discoveryName       The name of the service discovery host
@@ -85,7 +85,6 @@ _.extend(EndpointPool.prototype, {
 
   getStatus: function () {
     var poolStatus = this.poolManager.getStatus();
-    var endpoints = this.poolManager.endpoints;
     return _.assign({
       age: Date.now() - this.lastUpdate
     }, poolStatus);
