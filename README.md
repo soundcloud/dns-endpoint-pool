@@ -40,29 +40,34 @@ it is disabled once again.
 
 ## API
 
-### `new DNSEndpointPool(serviceDiscoveryName, ttl, maxFailures, failureWindow, resetTimeout, onReady)`
+### `new DNSEndpointPool(serviceDiscoveryName, ttl, circuitBreakerConfig, onReady)`
 
 Creates a new pool object.
 
 - `serviceDiscoveryName`: the domain name to get endpoint values from
 - `ttl`: the time (in ms) that the DNS lookup values are valid for. They will automatically be refreshed on this
   interval.
-- `maxFailures`: how many failures from a single endpoint before it is removed from the pool.
-- `failureWindow`: size of the sliding window of time in which the failures are counted.
-- `resetTimeout`: the length of the window in which to record failures. Also the timeout before an endpoint will be
-  tried again.
+- `circuitBreakerConfig`: optional configuration for circuit breaker behavior. If specified, errors on a particular endpoint will be tracked and bad endpoints removed from the pool. If none provided, no circuit breaker logic is applied. There are two different circuit-breaker behaviors available:
+  - Errors over time: the CB is configured with the an error threshold within a sliding time window. (eg: 5 errors in 10 seconds)
+    - `maxFailures`: how many failures from a single endpoint before it is removed from the pool.
+    - `failureWindow`: size of the sliding window of time in which the failures are counted.
+    - `resetTimeout`: The timeout before a failing endpoint will be re-entered to the pool and tried again.
+  - Error rate: the CB is configured with the percentage of errors within a sliding window of requests. (eg: 50% errors over 20 requests).
+    - `failureRate`: a number, `0 < n <= 1` that describes the rate at which the endpoint is disabled.
+    - `failureRateWindow`: the number of requests over which to calculate the failure rate.
+    - `resetTimeout`: The timeout before a failing endpoint will be re-entered to the pool and tried again.
 - `onReady`: callback that will be executed after the list of endpoints is fetched for the first time. This does *not* guarantee that the endpoint list is not empty.
 
 ### `pool.getEndpoint()`
 
 Returns the next active `endpoint` from the pool, or `null` if none are available. If none are available, the pool will
-emit `'noEndpoints'`.
+emit `'noEndpoints'`. If using circuit breakers, you _must_ call `endpoint.callback(err)` with the result of a call to this endpoint.
 
 ### `pool.getStatus()`
 
 Returns an object containing information about the health of the pool. There are three values:
 
-- `total`: The total number of endpoints in the pool, in any status.
+- `total`: The total number of endpoints in the pool, in any state.
 - `unhealthy`: The number of endpoints which are unavailable (eg: due to their circuit breaker being open)
 - `age`: The number of milliseconds since the last successful update of endpoints.
 
@@ -84,7 +89,11 @@ as a failure of the endpoint. If falsey, it marks the endpoint as successful and
 
 
 ```js
-var pool = new DNSEndpointPool('my.domain.example.com', 10000, 5, 10000, 10000);
+var pool = new DNSEndpointPool('my.domain.example.com', 10000, {
+  maxFailures: 5,
+  failureWindow: 10000,
+  resetTimeout: 10000
+});
 
 pool.on('updateError', function (err) {
   log('Could not fetch endpoints');
