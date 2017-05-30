@@ -1,4 +1,9 @@
 var _ = require('underscore');
+// endpoint states
+var CLOSED            = 0;  // closed circuit: endpoint is good to use
+var HALF_OPEN_READY   = 1;  // endpoint is in recovery state: offer it for use once
+var HALF_OPEN_PENDING = 2;  // endpoint recovery is in process
+var OPEN              = 3;  // open circuit: endpoint is no good
 
 function PoolManager (options) {
   options = options || {};
@@ -17,7 +22,10 @@ PoolManager.prototype = {
     return this.endpoints.length > 0;
   },
   getNextEndpoint: function () {
-    var i, l, offset, endpoint;
+    var i;
+    var l;
+    var offset;
+    var endpoint;
 
     for (i = 0, l = this.endpoints.length; i < l; ++i) {
       offset = (this._endpointOffset + i) % l;
@@ -31,7 +39,8 @@ PoolManager.prototype = {
     }
   },
   updateEndpoints: function (endpoints) {
-    var matchingEndpoint, i;
+    var matchingEndpoint;
+    var i;
     var newEndpoints = endpoints.map(function (info) {
       return new Endpoint(info);
     });
@@ -60,7 +69,7 @@ PoolManager.prototype = {
       unhealthy: this.endpoints.reduce(function (badCount, endpoint) {
         return badCount + (manager.isInPool(endpoint) ? 0 : 1);
       }, 0)
-    }
+    };
   }
 };
 
@@ -75,76 +84,120 @@ module.exports = {
     return new PoolManager();
   },
   ejectOnErrorPoolManager: function (options) {
-    // endpoint states
-    var CLOSED            = 0,  // closed circuit: endpoint is good to use
-        HALF_OPEN_READY   = 1,  // endpoint is in recovery state: offer it for use once
-        HALF_OPEN_PENDING = 2,  // endpoint recovery is in process
-        OPEN              = 3;  // open circuit: endpoint is no good
-
-    if (!options || !(options.failureWindow && options.maxFailures && options.resetTimeout)) {
-      throw new Error('Must supply all arguments to ejectOnErrorPoolManager');
+    if (!options) {
+      throw new Error('Must supply arguments to ejectOnErrorPoolManager');
     }
 
     var failureWindow = options.failureWindow;
     var maxFailures = options.maxFailures;
     var resetTimeout = options.resetTimeout;
+    var failureRate = options.failureRate;
+    var failureRateWindow = options.failureRateWindow;
+
+    var poolConfig;
+    if (failureWindow && maxFailures && resetTimeout) {
+      poolConfig = getRollingWindowConfiguration();
+    } else if (failureRate && failureRateWindow && resetTimeout) {
+      poolConfig = getRateConfiguration();
+    } else {
+      throw new Error('Must supply either configuration to ejectOnErrorPoolManager');
+    }
+
+    return new PoolManager(poolConfig);
 
     function disableEndpoint(endpoint) {
+      if (endpoint.state === OPEN) {
+        return;
+      }
       endpoint.state = OPEN;
       clearInterval(endpoint._reopenTimeout);
       endpoint._reopenTimeout = setTimeout(function () {
         endpoint.state = HALF_OPEN_READY;
       }, resetTimeout);
     }
-
-    return new PoolManager({
-      isInPool: function (endpoint) {
-        switch (endpoint.state) {
-          case HALF_OPEN_READY:
-          case CLOSED:
-            return true;
-          default:
-            return false;
-        }
-      },
-      onEndpointSelected: function (endpoint) {
-        if (endpoint.state === HALF_OPEN_READY) {
-          endpoint.state = HALF_OPEN_PENDING; // let one through, then turn it off again
-        }
-      },
-      onEndpointRegistered: function (endpoint) {
-        endpoint.state = CLOSED;
-        endpoint.failCount = 0;
-        // A ring buffer, holding the timestamp of each error. As we loop around the ring, the timestamp in the slot we're
-        // about to fill will tell us the error rate. That is, `maxFailure` number of requests in how many milliseconds?
-        endpoint.buffer = new Array(maxFailures - 1);
-        endpoint.bufferPointer = 0;
-      },
-      onEndpointReturned: function (endpoint, err) {
-        if (err) {
-          var oldestErrorTime, now;
-          if (endpoint.state === OPEN) {
-            return;
-          }
-
-          if (endpoint.buffer.length === 0) {
-            disableEndpoint(endpoint);
-            return;
-          }
-
-          oldestErrorTime = endpoint.buffer[endpoint.bufferPointer];
-          now = Date.now();
-          endpoint.buffer[endpoint.bufferPointer] = now;
-          endpoint.bufferPointer++;
-          endpoint.bufferPointer %= endpoint.buffer.length;
-
-          if (endpoint.state === HALF_OPEN_PENDING || (oldestErrorTime != null && now - oldestErrorTime <= failureWindow)) {
-            disableEndpoint(endpoint);
-          }
-        } else if (endpoint.state === HALF_OPEN_PENDING) {
-          endpoint.state = CLOSED;
-        }
+    function isInPool(endpoint) {
+      return endpoint.state === CLOSED || endpoint.state === HALF_OPEN_READY;
+    }
+    function onEndpointSelected(endpoint) {
+      if (endpoint.state === HALF_OPEN_READY) {
+        endpoint.state = HALF_OPEN_PENDING; // let one through, then turn it off again
       }
-    })
+    }
+
+    function getRollingWindowConfiguration() {
+      return {
+        isInPool: isInPool,
+        onEndpointSelected: onEndpointSelected,
+        onEndpointRegistered: function (endpoint) {
+          endpoint.state = CLOSED;
+          // A ring buffer, holding the timestamp of each error. As we loop around the ring, the timestamp in the slot we're
+          // about to fill will tell us the error rate. That is, `maxFailure` number of requests in how many milliseconds?
+          endpoint.buffer = new RingBuffer(maxFailures - 1);
+        },
+        onEndpointReturned: function (endpoint, err) {
+          if (err) {
+            if (endpoint.state === OPEN) {
+              return;
+            }
+
+            if (endpoint.buffer.size === 0) {
+              disableEndpoint(endpoint);
+              return;
+            }
+
+            var now = Date.now();
+            var oldestErrorTime = endpoint.buffer.read();
+            endpoint.buffer.write(now);
+
+            if (endpoint.state === HALF_OPEN_PENDING || (oldestErrorTime != null && now - oldestErrorTime <= failureWindow)) {
+              disableEndpoint(endpoint);
+            }
+          } else if (endpoint.state === HALF_OPEN_PENDING) {
+            endpoint.state = CLOSED;
+          }
+        }
+      };
+    }
+
+    function getRateConfiguration() {
+      var maxErrorCount = failureRate * failureRateWindow;
+      return {
+        isInPool: isInPool,
+        onEndpointSelected: onEndpointSelected,
+        onEndpointRegistered: function (endpoint) {
+          endpoint.state = CLOSED;
+          endpoint.buffer = new RingBuffer(failureRateWindow);
+          endpoint.errors = 0;
+        },
+        onEndpointReturned: function (endpoint, err) {
+          var state = endpoint.state;
+          var newStatus = err ? 1 : 0;
+          var oldestStatus = endpoint.buffer.read() ? 1 : 0;
+          endpoint.buffer.write(!!newStatus);
+          endpoint.errors += newStatus - oldestStatus;
+
+          if (err && (state === HALF_OPEN_PENDING || endpoint.errors >= maxErrorCount)) {
+            disableEndpoint(endpoint);
+          } else if (!err && state === HALF_OPEN_PENDING) {
+            endpoint.state = CLOSED;
+          }
+        }
+      };
+    }
   }
 };
+
+function RingBuffer(size) {
+  this.buffer = new Array(size);
+  this.offset = 0;
+  this.size = size;
+}
+_.assign(RingBuffer.prototype, {
+  read: function () {
+    return this.buffer[this.offset];
+  },
+  write: function (val) {
+    this.buffer[this.offset] = val;
+    this.offset = (this.offset + 1) % this.size;
+  }
+});
